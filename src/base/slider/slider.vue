@@ -79,13 +79,13 @@
       methods: {
           // 初始化轮播图宽度
         _setSliderWidth(isResize) {
-          this.children = this.$refs.sliderGroup.children;
+          this.children = this.$refs.sliderGroup.children; // 轮播图DOM
           let width = 0;
           let sliderWidth = this.$refs.slider.clientWidth; // slider容器宽度，也就是div默认的100%宽度，全屏宽度
 //          console.log(this.children)
           for(let child of this.children){
 //            console.log(child);
-            addClass(child,'slider-item');
+            addClass(child,'slider-item'); // 为每张轮播图加上class=slider-item
             child.style.width = sliderWidth + 'px'; // 设置每张轮播图为全屏宽度
             width += sliderWidth; // 有多少张轮播图，width的宽度就为所有轮播图的总宽度和
           }
@@ -94,28 +94,28 @@
           }
           this.$refs.sliderGroup.style.width = width + 'px'; // 设置sliderGroup容器的总宽度(所有轮播图宽度之和)
         },
-        // 初始化轮播图滚动
+        // 初始化轮播图滚动(初始化better-scroll插件)
         _initSlider() {
           this.slider = new BScroll(this.$refs.slider, {
             scrollX: true,
             scrollY: false,
             momentum: false, // 惯性
             snap: {
-              loop: this.loop, // 是否循环
+              loop: this.loop, // 是否循环 如果为true，则在slider容器中自动复制第一张和最后一张轮播图
               threshold: this.threshold,
               speed: this.speed
             },
             click: this.click  // 可点击
           })
 
-          this.slider.on('scrollEnd', this._onScrollEnd);
-          this.slider.on('touchEnd',()=>{
+          this.slider.on('scrollEnd', this._onScrollEnd); // 每次滚动结束时，触发scrollEnd事件
+          this.slider.on('touchEnd',()=>{ // 每次触摸结束时，触发touchEnd事件
             if(this.autoPlay){
               this._play()
             }
           })
         },
-        // 初始化轮播图定位点
+        // 初始化轮播图定位点 定义一个长度为this.children.length的无值数组
         _initDots() {
           this.dots = new Array(this.children.length) // 点的数量要与轮播图图片(this.children)数量一致
         },
@@ -128,6 +128,11 @@
               this._play()
             }
         },
+
+        /**
+         * 每隔this.interval毫秒自动播放
+         * @private
+         */
         _play() {
           clearTimeout(this.timer);
           this.timer = setTimeout(()=>{

@@ -1,32 +1,49 @@
 <template>
   <div class="recommend">
-    <div class="recommend-content">
-      <div v-if="recommends.length" class="slider-wrapper"> <!--当recommends有数据时，才开始渲染该div，也就是才开始加载slider组件，不然slider组件中的mounted方法都开始执行了，页面中还没有加载出数据-->
-        <slider>
-          <div v-for="(item,index) in recommends" :key="index">
-            <a :href="item.linkUrl">
-              <img :src="item.picUrl">
-            </a>
-          </div>
-        </slider>
+    <scroll ref="scroll" class="recommend-content" :data="discList"><!--绑定props属性data=discList，当discList数据发生了变化时，会触发scroll组件中的watch，从而更新better-scroll，重新获取页面的宽高，而不需要调用者自己手动来更新better-scroll-->
+      <div>
+        <div v-if="recommends.length" class="slider-wrapper"> <!--当recommends有数据时，才开始渲染该div，也就是才开始加载slider组件，不然slider组件中的mounted方法(better-scroll初始化)都开始执行了，页面中还没有加载出数据(导致better-scroll获取不到dom元素的宽高)-->
+          <slider>
+            <div v-for="(item,index) in recommends" :key="index">
+              <a :href="item.linkUrl">
+                <img  @load="loadImage" :src="item.picUrl">
+              </a>
+            </div>
+          </slider>
+        </div>
+        <div class="recommend-list">
+          <h1 class="list-title">热门歌单推荐</h1>
+          <ul>
+            <li v-for="(item,index) in discList" class="item">
+              <div class="icon">
+                <img v-lazy="item.imgurl" width="60" height="60">
+              </div>
+              <div class="text">
+                <h2 class="name" v-html="item.creator.name"></h2>
+                <p class="desc" v-html="item.dissname"></p>
+              </div>
+            </li>
+          </ul>
+        </div>
       </div>
-      <div class="recommend-list">
-        <h1 class="list-title">热门歌单推荐</h1>
-        <ul></ul>
+      <div v-show="!discList.length" class="loading-container">
+        <loading text="歌单载入中……"></loading>
       </div>
-    </div>
+    </scroll>
   </div>
-
 </template>
 
 <script type="text/ecmascript-6">
+  import Scroll from 'base/scroll/scroll'
   import Slider from 'base/slider/slider'
+  import Loading from 'base/loading/loading'
   import {getRecommend, getDiscList} from 'api/recommend';
   import {ERR_OK} from 'api/config'
   export default {
     data() {
       return {
-        recommends: []
+        recommends: [],
+        discList: []
       }
     },
     created() {
@@ -44,15 +61,31 @@
       },
       _getDiscList() {
         getDiscList().then((res) => {
-          console.log(res)
           if(res.code == ERR_OK){
-            console.log(res.data)
+
+//            setTimeout(()=>{
+              this.discList = res.data.list;
+//            },2000)
+
           }
         })
+      },
+      /**
+       * 当轮播图片加载后，更新scroll组件，使better-scroll重新计算页面的宽高
+       * 使用this.checkImage变量 使scroll组件只更新一次
+       * TODO discList数据变化和轮播图加载完成都会使scroll组件更新，这样双重触发，使better-scroll能够准确计算出页面的宽高，使页面能完美的滚动
+       */
+      loadImage() {
+        if (!this.checkImage) {
+          this.$refs.scroll.refresh();
+          this.checkImage = true;
+        }
       }
     },
     components: {
-      Slider
+      Slider,
+      Scroll,
+      Loading
     }
   }
 </script>
