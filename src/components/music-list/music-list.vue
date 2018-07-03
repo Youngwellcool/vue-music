@@ -1,10 +1,16 @@
 <template>
   <div class="music-list">
-    <div class="back" >
+    <div class="back" @click="back">
       <i class="icon-back"></i>
     </div>
     <h1 class="title" v-html="title" ref="title"></h1>
     <div class="bg-image" :style="bgStyle" ref="bgImage">
+      <div class="play-wrapper">
+        <div class="play" v-show="songs.length>0" ref="playBtn">
+          <i class="icon-play"></i>
+          <span class="text">随机播放全部</span>
+        </div>
+      </div>
       <div class="filter" ref="filter"></div>
     </div>
     <div class="bg-layer" ref="layer"></div>
@@ -15,7 +21,10 @@
             class="list"
             ref="list">
       <div class="song-list-wrapper">
-        <song-list :songs="songs"></song-list>
+        <song-list @select="selectItem" :songs="songs"></song-list>
+      </div>
+      <div class="loading-container" v-show="!songs.length">
+        <loading></loading>
       </div>
     </scroll>
   </div>
@@ -25,6 +34,8 @@
   import Scroll from 'base/scroll/scroll'
   import SongList from 'base/song-list/song-list'
   import {prefixStyle} from 'common/js/dom'
+  import Loading from 'base/loading/loading'
+  import {mapActions} from 'vuex'
 
   const RESERVED_HEIGHT = 40; // 歌曲滚动的偏移量，也就是class=title的高度
   const transform = prefixStyle('transform');
@@ -68,7 +79,18 @@
       methods: {
         scroll(pos) {
           this.scrollY = pos.y;
-        }
+        },
+        back() {
+          this.$router.back();
+        },
+        selectItem(song, index) {
+          this.selectPlay({
+            list: this.songs,
+            index: index
+          })
+        },
+        // 使用对象展开运算符将 actions 混入 methods 对象中
+        ...mapActions(['selectPlay']),  // 将this.selectPlay()方法映射为store/actions.js中的selectPlay()方法，等于在该组件中挂载了selectPlay()方法
       },
       watch: {
         scrollY(newY) {
@@ -79,16 +101,18 @@
           this.maxScrollHeight = -(this.bgImageHeight - RESERVED_HEIGHT); // ref=layer能往上滚动的最大距离
           let translateY = Math.max(this.maxScrollHeight, newY); // 这两个值都是负值
           if(translateY==this.maxScrollHeight){ // 往上滚动到最大距离了
-            zIndex = 10; // 设置背景图片的z-index
+            zIndex = 10; // 设置背景图片的z-index 目的是为了让图片盖住歌曲列表，就好像是给歌曲列表设置了overflow:hidden一样
             this.$refs.bgImage.style.paddingTop = `${RESERVED_HEIGHT}px`; // 设置背景图片的padding-top，其实就相当于设置height
+            this.$refs.playBtn.style.display = 'none';
           }else {
             this.$refs.bgImage.style.paddingTop = '70%';
+            this.$refs.playBtn.style.display = '';
           }
           if(newY > 0) { // 如果往下拉歌曲列表，设置背景图片的z-index和缩放比例
             zIndex = 10;
             scale = 1 + percent; // 背景图片缩放比例 (由来：用this.bgImageHeight*scale = newY+this.bgImageHeight,根据计算结果可以看出，newY等于多少，背景图片的高度就增加了多少，这样就实现了背景图片根据下拉的距离无缝缩放)
           }else { // 如果往上滚动
-            blur = Math.min(20 * percent, 20)
+            blur = Math.min(20 * percent, 20);
           }
           this.$refs.bgImage.style.zIndex = zIndex; // bgImage的z-index的值根据上面的几个if和else条件，变化频繁，所以不要把此句放置在上面的if，else中，只把需要改变的z-index放置在if、else中就可以了，减少了代码量
           this.$refs.filter.style[backdrop] = `blur(${blur}px)`;
@@ -98,7 +122,8 @@
       },
       components: {
         SongList,
-        Scroll
+        Scroll,
+        Loading
       }
     }
 </script>
