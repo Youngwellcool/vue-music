@@ -1,6 +1,11 @@
 <template>
   <div class="player" v-show="playlist.length>0">
-    <transition name="normal">
+    <transition name="normal"
+                @enter="enter"
+                @after-enter="afterEnter"
+                @leave="leave"
+                @after-leave="afterLeave"
+    >
       <div class="normal-player" v-show="fullScreen">
         <div class="background">
           <img width="100%" height="100%" :src="currentSong.image">
@@ -14,7 +19,7 @@
         </div>
         <div class="middle">
           <div class="middle-l">
-            <div class="cd-wrapper">
+            <div class="cd-wrapper" ref="cdWrapper">
               <div class="cd">
                 <img class="image" :src="currentSong.image">
               </div>
@@ -30,7 +35,7 @@
               <i class="icon-prev"></i>
             </div>
             <div class="icon i-center">
-              <i class="icon-play"></i>
+              <i @click="togglePlaying" :class="playIcon"></i>
             </div>
             <div class="icon i-right" >
               <i  class="icon-next"></i>
@@ -52,21 +57,40 @@
           <p class="desc" v-html="currentSong.singer"></p>
         </div>
         <div class="control">
+          <i @click.stop="togglePlaying" :class="playIconMini"></i>
+        </div>
+        <div class="control">
           <i class="icon-playlist"></i>
         </div>
       </div>
     </transition>
+    <audio ref="audio" :src="currentSong.url"></audio>
   </div>
 </template>
 
 <script type="text/ecmascript-6">
     import {mapGetters, mapMutations} from 'vuex'
+    import animations from 'create-keyframe-animation'
+    import {prefixStyle} from 'common/js/dom'
+
+    const transform = prefixStyle('transform');
+    const transition = prefixStyle('transition');
+    const animation = prefixStyle('animation');
     export default {
       computed: {
+          // 全屏播放界面：如果播放状态，就显示暂停icon，反之，播放icon
+        playIcon() {
+          return this.playing ? 'icon-pause' : 'icon-play';
+        },
+        // mini播放界面：如果播放状态，就显示暂停icon，反之，播放icon
+        playIconMini() {
+          return this.playing ? 'icon-pause-mini' : 'icon-play-mini';
+        },
         ...mapGetters([
           'playlist',
           'fullScreen',
-          'currentSong'
+          'currentSong',
+          'playing'
         ])
       },
       methods: {
@@ -77,10 +101,94 @@
         open() {
           this.setFullScreen(true)
         },
+        enter(el, done) {
+          let {x,y,scale} = this._getPosAndScale();
+          let animation = {
+            0: {
+              transform: `translate3d(${x}px, ${y}px, 0) scale(${scale})` // 设置大唱片在动画开始时初始位置x,y和初始状态scale。。(这个初始位置和初始状态是相对于动画结束后大唱片的正常位置【translate3d(0, 0, 0) scale(1)】的偏移量和缩放量，这个初始位置和初始状态就是小唱片的正常位置和缩放大小，相对于大唱片是往左偏移了x、往下偏移了y、缩放了scale。所以偏移量x是负值，y是正值，scale是小于1的)
+            },
+            60: {
+              transform: 'translate3d(0, 0, 0) scale(1.1)'
+            },
+            100: {
+              transform: 'translate3d(0, 0, 0) scale(1)'
+            }
+          };
+          animations.registerAnimation({
+            name: 'move',
+            animation,
+            presets: {
+              duration: 400,
+              easing: 'linear'
+            }
+          });
+          animations.runAnimation(this.$refs.cdWrapper, 'move', done)
+        },
+        afterEnter() {
+          animations.unregisterAnimation('move');
+          this.$refs.cdWrapper.style[animation] = '';
+        },
+        leave(el, done) {
+          let {x,y,scale} = this._getPosAndScale();
+          this.$refs.cdWrapper.style[transition] = 'all 0.4s';
+          this.$refs.cdWrapper.style[transform] = `translate3d(${x}px, ${y}px, 0) scale(${scale})`;
+          this.$refs.cdWrapper.addEventListener('transitionend', done)
+        },
+        afterLeave() {
+          this.$refs.cdWrapper.style[transition] = '';
+          this.$refs.cdWrapper.style[transform] = '';
+        },
+        /**
+         * 获取大唱片位置偏移到小唱片位置，x轴和y轴方向上的偏移量x、y，缩放比例scale
+         * TODO 为什么会想到要获取这些值呢？因为做css3动画，都是要先获取动画的初始位置，初始状态
+         * @returns {{x: number, y: number, scale: number}}
+         * @private
+         */
+        _getPosAndScale() {
+          const targetWidth = 40; // 小唱片图片的宽度 1
+          const paddingLeft = 40; // 小唱片图片的中心点到屏幕左测的距离 2
+          const paddingBottom = 30; // 小唱片图片的中心点到屏幕底部的距离 3
+          const paddingTop = 80;  // 大唱片图片的顶部到屏幕顶部的距离 4
+          const width = window.innerWidth * 0.8;  // 大唱片图片的宽度 (css中 width:80%)
+          const scale = targetWidth / width; // 大唱片图片到小唱片图片的缩小比例
+          const x = -(window.innerWidth/2 - paddingLeft); // 大唱片图片中心点与小唱片图片中心点在x轴方向上的距离 (负值：是因为大唱片偏移到小唱片的位置，x轴方向上需要往左移)
+          const y = window.innerHeight - paddingTop - window.innerWidth/2 - paddingBottom; // 大唱片图片中心点与小唱片图片中心点在y轴方向上的距离 (也就是大唱片位置到小唱片位置，y轴的偏移量)
+          return {
+            x,
+            y,
+            scale
+          }
+        },
+          /**
+           * 切换播放和暂停
+           * 调用mutations中的SET_PLAYING_STATE方法，传入playing状态的取反，如果播放就暂停，如果暂停就播放
+           */
+        togglePlaying() {
+          this.setPlayingState(!this.playing)
+        },
         ...mapMutations({
           setFullScreen: 'SET_FULL_SCREEN', // 将this.setFullScreen方法映射到mutations中的SET_FULL_SCREEN方法
+          setPlayingState: 'SET_PLAYING_STATE'
         })
       },
+      watch: {
+        // 当song-list.vue组件中的歌曲被点击，会emit  music-list.vue组件中的select事件，触发selectItem()方法，该方法执行store/actions.js中的selectPlay()方法，该方法会改变store/state.js中的playing状态和currentSong状态，所以，当歌曲被点击时，会同时触发该watch对象的currentSong()和playing()，而这时播放页面也刚刚加载，audio DOM元素还没有准备就绪，就开始执行audio的播放或者暂停，就会报错，所以需要延时执行，使用下一帧执行
+
+        /**
+         * watch当前歌曲currentSong变化，就执行音乐的播放
+         */
+        currentSong() {
+          this.$nextTick(() => { // audio DOM元素还没有准备好就执行play()方法会报错，所以这里给个延时，下一帧
+            this.$refs.audio.play();
+          })
+        },
+        playing(newPlaying) {
+          const audio = this.$refs.audio;
+          this.$nextTick(() => {
+            newPlaying ? audio.play() : audio.pause()
+          })
+        },
+      }
     }
 </script>
 
