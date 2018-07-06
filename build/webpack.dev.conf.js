@@ -33,11 +33,26 @@ const devWebpackConfig = merge(baseWebpackConfig, {
   // these devServer options should be customized in /config/index.js
   devServer: {
     before(app) {
-      // TODO 请求地址一定要加上/api，没加上一直报404错误(找了好久没发现原来，郁闷)
+      // TODO 页面中引用，请求地址一定要加上/api，没加上一直报404错误(找了好久没发现原来，郁闷)
       app.get('/api/getDiscList',function (req, res) {
         var url = 'https://c.y.qq.com/splcloud/fcgi-bin/fcg_get_diss_by_tag.fcg';
         axios.get(url,{ // 此处axios是运行在node.js中，所以此处发的是http请求而不是xhr请求
           headers:{ // 修改header骗过浏览器referer和host如下
+            referer: 'https://c.y.qq.com/',
+            host: 'c.y.qq.com'
+          },
+          params: req.query
+        }).then((response) => {
+          res.json(response.data) // 发送response.data给客户端
+        }).catch((err) => {
+          console.log(err)
+        })
+      }),
+      // TODO 页面中引用，请求地址一定要加上/api，没加上一直报404错误(找了好久没发现原来，郁闷)
+      app.get('/api/getMusic', function (req, res) {
+        var url = 'https://c.y.qq.com/base/fcgi-bin/fcg_music_express_mobile3.fcg';
+        axios.get(url, { // 此处axios是运行在node.js中，所以此处发的是http请求而不是xhr请求
+          headers: { // 修改header骗过浏览器referer和host如下
             referer: 'https://c.y.qq.com/',
             host: 'c.y.qq.com'
           },

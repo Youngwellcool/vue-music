@@ -45,9 +45,6 @@
             }
           })
 
-//          getSingerVkey(this.singer.id).then((res) => {
-//            console.log(res);
-//          })
         },
         /**
          * 对getSingerDetail()方法获取到的歌手的歌曲项进行再加工
@@ -61,7 +58,13 @@
           list.forEach((item) => {
             let {musicData} = item; // 相当于 musicData=item.musicData;
             if(musicData.songid && musicData.albummid){ // songid和ablummid是必传字段
-              ret.push(createSong(musicData))
+              getSingerVkey(musicData.songmid).then((res) => {
+                if(res.code === ERR_OK){
+                  let songVkey = res.data.items[0].vkey;
+                  const newSong = createSong(musicData, songVkey)
+                  ret.push(newSong)
+                }
+              })
             }
           })
           return ret;

@@ -16,7 +16,7 @@ export function getRecommend() {
 }
 
 export function getDiscList() {
-  const url = '/api/getDiscList';
+  const url = '/api/getDiscList'; // 一定要加上/api
 
   const data = Object.assign({},commonParams,{
     platform: 'yqq',
@@ -32,7 +32,7 @@ export function getDiscList() {
   return axios.get(url,{
     params: data,
   }).then((res) => {
-    console.log(res.data)
+    // console.log(res.data)
     return Promise.resolve(res.data) // 返回一个Promise对象，且直接执行[成功后的回调resolve函数]，抛出res.data数据给then方法作为参数 (供recommend.vue中的_getDiscList方法使用)
   })
 }

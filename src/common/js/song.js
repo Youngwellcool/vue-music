@@ -18,17 +18,16 @@ export default class Song {
  * @param musicData
  * @returns {Song} 返回一个Song类
  */
-export function createSong(musicData) {
+export function createSong(musicData, songVkey) {
   return new Song({
     id: musicData.songid,
-    min: musicData.songmid,
+    mid: musicData.songmid,
     singer: filterSinger(musicData.singer),
     name: musicData.songname,
     album: musicData.albumname,
     duration: musicData.interval, // 单位是秒
     image: `https://y.gtimg.cn/music/photo_new/T002R300x300M000${musicData.albummid}.jpg?max_age=2592000`,
-    url: `http://dl.stream.qqmusic.qq.com/C400001Qu4I30eVFYb.m4a?vkey=840447AFDC71CF09B102CC25831A3D2C06227AD76D2D0B8D54B01204A83369C5D7FEC7435B70B95635D1E36BC7C81D35A408C508DF2803FA&guid=2761703576&uin=0&fromtag=66`
-
+    url: `http://dl.stream.qqmusic.qq.com/C400${musicData.songmid}.m4a?guid=3690129696&vkey=${songVkey}&uin=0&fromtag=66`
   })
 }
 
