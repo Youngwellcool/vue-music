@@ -42,11 +42,10 @@ export function getSingerDetail(singerId) {
   //     songstatus: 1,
   //     cid:205361747,
   //     uin: 0,
-  //     singermid: singerId,
+  //     songmid: singerId,
   //     filename: `C400${singerId}.m4a`,
   //     guid: 1263780407,
-  //     fromtag: 38
-  //   })
+  //   });
   //   return jsonp(url, data, options)
   // }
 

@@ -20,25 +20,32 @@
         <div class="middle">
           <div class="middle-l">
             <div class="cd-wrapper" ref="cdWrapper">
-              <div class="cd">
+              <div class="cd" :class="cdCls">
                 <img class="image" :src="currentSong.image">
               </div>
             </div>
           </div>
         </div>
         <div class="bottom">
+          <div class="progress-wrapper">
+            <span class="time time-l">{{format(currentTime)}}</span>
+            <div class="progress-bar-wrapper">
+              <progress-bar :percent="percent" @percentChange="onProgressBarChange"></progress-bar>
+            </div>
+            <span class="time time-r">{{format(currentSong.duration)}}</span>
+          </div>
           <div class="operators">
-            <div class="icon i-left" >
-              <i class="icon-sequence"></i>
+            <div class="icon i-left" @click="changeMode">
+              <i :class="iconMode"></i>
             </div>
-            <div class="icon i-left">
-              <i class="icon-prev"></i>
+            <div class="icon i-left" :class="disableCls">
+              <i @click="prev" class="icon-prev"></i>
             </div>
-            <div class="icon i-center">
+            <div class="icon i-center" :class="disableCls">
               <i @click="togglePlaying" :class="playIcon"></i>
             </div>
-            <div class="icon i-right" >
-              <i  class="icon-next"></i>
+            <div class="icon i-right"  :class="disableCls">
+              <i @click="next" class="icon-next"></i>
             </div>
             <div class="icon i-right">
               <i class="icon icon-not-favorite"></i>
@@ -50,21 +57,23 @@
     <transition name="mini">
       <div class="mini-player" v-show="!fullScreen" @click="open">
         <div class="icon">
-          <img class="play pause" :src="currentSong.image">
+          <img :class="cdCls" :src="currentSong.image">
         </div>
         <div class="text">
           <h2 class="name" v-html="currentSong.name"></h2>
           <p class="desc" v-html="currentSong.singer"></p>
         </div>
         <div class="control">
-          <i @click.stop="togglePlaying" :class="playIconMini"></i>
+          <progress-circle :radius="radius" :percent="percent">
+            <i @click.stop="togglePlaying" class="icon-mini" :class="playIconMini"></i>
+          </progress-circle>
         </div>
         <div class="control">
           <i class="icon-playlist"></i>
         </div>
       </div>
     </transition>
-    <audio ref="audio" :src="currentSong.url"></audio>
+    <audio ref="audio" :src="currentSong.url" @canplay="ready" @error="error" @timeupdate="timeUpdate"></audio>
   </div>
 </template>
 
@@ -72,11 +81,22 @@
     import {mapGetters, mapMutations} from 'vuex'
     import animations from 'create-keyframe-animation'
     import {prefixStyle} from 'common/js/dom'
+    import progressBar from 'base/progress-bar/progress-bar'
+    import progressCircle from 'base/progress-circle/progress-circle'
+    import {playMode} from "common/js/config";
+    import {shuffle} from 'common/js/util'
 
     const transform = prefixStyle('transform');
     const transition = prefixStyle('transition');
     const animation = prefixStyle('animation');
     export default {
+      data() {
+        return {
+          songReady: false, // audio元素是否准备就绪 标志位
+          currentTime: 0,
+          radius: 32,  // 迷你播放器圆形精度条的半径
+        }
+      },
       computed: {
           // 全屏播放界面：如果播放状态，就显示暂停icon，反之，播放icon
         playIcon() {
@@ -86,11 +106,31 @@
         playIconMini() {
           return this.playing ? 'icon-pause-mini' : 'icon-play-mini';
         },
+        cdCls() {
+          return this.playing ? 'play' : 'play pause'; // 暂停play和pause样式都要加上，如果没有加上play样式，暂停时就回到初始旋转角度了
+        },
+        disableCls() {
+          return this.songReady ? '' : 'disable';
+        },
+          /**
+           * 进度条的百分比
+           * 用计算属性获取极为方便
+           *  通过当前歌曲的时间除以歌曲总时间可以获取到歌曲播放的百分比
+           */
+        percent() {
+          return this.currentTime / this.currentSong.duration;
+        },
+        iconMode() {
+          return this.mode === playMode.sequence ? 'icon-sequence' : this.mode === playMode.loop ? 'icon-loop' : 'icon-random'
+        },
         ...mapGetters([
           'playlist',
           'fullScreen',
           'currentSong',
-          'playing'
+          'playing',
+          'currentIndex',
+          'mode',
+          'sequenceList'
         ])
       },
       methods: {
@@ -101,6 +141,76 @@
         open() {
           this.setFullScreen(true)
         },
+          // 绑定audio元素的canplay事件，避免了当用户频繁快速的切歌时，歌曲没有准备就绪就开始执行audio元素的play()方法而导致的报错
+        ready() {
+          this.songReady = true;
+        },
+          // 绑定audio元素的error事件
+        error() {
+          this.songReady = true;  // 当这首歌曲加载失败或者这首歌曲url错误，会触发audio的error事件，导致这首歌曲不能播放，就不能触发canplay事件，this.songReady就一直等于false，用户切歌，就无法执行pre()和 next()和 togglePlaying()方法，所以这里需要将this.songReady=true，目的是这首歌出错了，不影响下一首上一首歌切换
+        },
+        next() {
+          if(!this.songReady) {  // 如果audio元素没有准备好，就不能点击下一首
+            return
+          }
+          let index = (this.currentIndex === (this.playlist.length - 1)) ? 0 : this.currentIndex + 1;
+          this.setCurrentIndex(index);
+          if(!this.playing) {
+            this.togglePlaying()
+          }
+          this.songReady = false;  // 切歌成功后要把songReady置为false
+        },
+        prev() {
+          if(!this.songReady) { // 如果audio元素没有准备好，就不能点击上一首
+            return
+          }
+          let index = this.currentIndex === 0 ? (this.playlist.length - 1) : (this.currentIndex -1);
+          this.setCurrentIndex(index);
+          if(!this.playing) {
+            this.togglePlaying()
+          }
+          this.songReady = false;  // 切歌成功后要把songReady置为false
+        },
+        timeUpdate(e) {
+          this.currentTime = e.target.currentTime; // 取到的值形如：2.770613s，不能直接使用需要格式化
+        },
+          /**
+           * 拖动结束后派发的事件回调函数
+           * 根据子组件progress-bar.vue传过来的percent设置audio元素的currentTime值
+           * 拖动结束后，设置为播放状态
+           */
+        onProgressBarChange(percent) {
+          this.$refs.audio.currentTime = this.currentSong.duration * percent; // audio元素的currentTime属性是可读性的
+          if(!this.playing) {  // 拖动结束后，设置为播放状态
+            this.togglePlaying();
+          }
+        },
+          /**
+           * 时间戳格式化为分和秒
+           * @param interval 需要格式化的时间戳，单位为秒
+           */
+        format(interval) {
+          interval = interval | 0; // 下取整
+          let minute = interval/60 | 0;
+          let second = this._pad(interval%60, 0); // 秒补位
+          return `${minute}:${second}`
+        },
+        /**
+         * 不够位数，补位格式化函数
+         * @param num 需格式化补位的数字
+         * @param str 指定的补位字符
+         * @param n 指定当num少于n位时，才需要补位，一直补到num的位数等于n位
+         */
+        _pad(num, str, n = 2) {
+          str = str.toString();
+          let len = num.toString().length;
+          while(len < n) {
+            num = str + num;
+            len++
+          }
+          return num;
+        },
+
         enter(el, done) {
           let {x,y,scale} = this._getPosAndScale();
           let animation = {
@@ -164,11 +274,29 @@
            * 调用mutations中的SET_PLAYING_STATE方法，传入playing状态的取反，如果播放就暂停，如果暂停就播放
            */
         togglePlaying() {
+          if(!this.songReady) {
+            return
+          }
           this.setPlayingState(!this.playing)
+        },
+        changeMode() {
+          let mode = (this.mode + 1) % 3; //this.mode值为0,1,2;加1就等于是切换到下一个模式，%3就能把结果限制在0,1,2这三个数
+          this.setPlayMode(mode);
+          let list = null;
+          if(this.mode === playMode.random){
+            list = shuffle(this.sequenceList)
+          }else {
+            list = this.sequenceList;
+          }
+          console.log(list)
+//          this.setPlayList(list);
         },
         ...mapMutations({
           setFullScreen: 'SET_FULL_SCREEN', // 将this.setFullScreen方法映射到mutations中的SET_FULL_SCREEN方法
-          setPlayingState: 'SET_PLAYING_STATE'
+          setPlayingState: 'SET_PLAYING_STATE',
+          setCurrentIndex: 'SET_CURRENT_INDEX',
+          setPlayMode: 'SET_PLAY_MODE',
+          setPlayList: 'SET_SEQUENCE_LIST'
         })
       },
       watch: {
@@ -188,6 +316,10 @@
             newPlaying ? audio.play() : audio.pause()
           })
         },
+      },
+      components: {
+        progressBar,
+        progressCircle
       }
     }
 </script>
@@ -264,8 +396,6 @@
             .cd
               width: 100%
               height: 100%
-              box-sizing: border-box
-              border: 10px solid rgba(255, 255, 255, 0.1)
               border-radius: 50%
               &.play
                 animation: rotate 20s linear infinite
@@ -277,6 +407,8 @@
                 top: 0
                 width: 100%
                 height: 100%
+                box-sizing: border-box
+                border: 10px solid rgba(255, 255, 255, 0.1)
                 border-radius: 50%
 
           .playing-lyric-wrapper

@@ -38,6 +38,7 @@
             this.$router.push('/singer'); // 回跳到歌手列表页面
             return
           }
+            // 根据this.singer.id获取歌手的歌曲
           getSingerDetail(this.singer.id).then((res) => {
             if(res.code === ERR_OK){
               this.songs = this._normalizeSong(res.data.list);
@@ -57,11 +58,12 @@
           let ret = [];
           list.forEach((item) => {
             let {musicData} = item; // 相当于 musicData=item.musicData;
+            console.log(musicData)
             if(musicData.songid && musicData.albummid){ // songid和ablummid是必传字段
               getSingerVkey(musicData.songmid).then((res) => {
                 if(res.code === ERR_OK){
                   let songVkey = res.data.items[0].vkey;
-                  const newSong = createSong(musicData, songVkey)
+                  const newSong = createSong(musicData, songVkey);
                   ret.push(newSong)
                 }
               })
