@@ -6,7 +6,7 @@
     <h1 class="title" v-html="title" ref="title"></h1>
     <div class="bg-image" :style="bgStyle" ref="bgImage">
       <div class="play-wrapper">
-        <div class="play" v-show="songs.length>0" ref="playBtn">
+        <div class="play" v-show="songs.length>0" ref="playBtn" @click="random">
           <i class="icon-play"></i>
           <span class="text">随机播放全部</span>
         </div>
@@ -83,14 +83,23 @@
         back() {
           this.$router.back();
         },
+          // 点击歌曲列表中的歌曲执行函数
         selectItem(song, index) {
           this.selectPlay({
             list: this.songs,
             index: index
           })
         },
+        random() {
+          this.randomPlay({
+            list: this.songs
+          })
+        },
         // 使用对象展开运算符将 actions 混入 methods 对象中
-        ...mapActions(['selectPlay']),  // 将this.selectPlay()方法映射为store/actions.js中的selectPlay()方法，等于在该组件中挂载了selectPlay()方法
+        ...mapActions([
+          'selectPlay', // 将this.selectPlay()方法映射为store/actions.js中的selectPlay()方法，等于在该组件中挂载了selectPlay()方法
+          'randomPlay'
+        ]),
       },
       watch: {
         scrollY(newY) {

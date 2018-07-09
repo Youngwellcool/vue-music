@@ -73,7 +73,7 @@
         </div>
       </div>
     </transition>
-    <audio ref="audio" :src="currentSong.url" @canplay="ready" @error="error" @timeupdate="timeUpdate"></audio>
+    <audio ref="audio" :src="currentSong.url" @canplay="ready" @error="error" @timeupdate="timeUpdate" @ended="end"></audio>
   </div>
 </template>
 
@@ -173,6 +173,21 @@
         },
         timeUpdate(e) {
           this.currentTime = e.target.currentTime; // 取到的值形如：2.770613s，不能直接使用需要格式化
+        },
+        end() {
+          if(this.mode === playMode.loop) { // 单曲循环播放模式
+            this.loop();
+          }else {
+            this.next();
+          }
+        },
+          /**
+           * 单曲循环模式
+           * 设置audio元素的currentTime=0即可实现
+           */
+        loop() {
+          this.$refs.audio.currentTime = 0;
+          this.$refs.audio.play();
         },
           /**
            * 拖动结束后派发的事件回调函数
@@ -284,19 +299,30 @@
           this.setPlayMode(mode);
           let list = null;
           if(this.mode === playMode.random){
-            list = shuffle(this.sequenceList)
+            list = shuffle(this.playlist)
           }else {
             list = this.sequenceList;
           }
-          console.log(list)
-//          this.setPlayList(list);
+          this.resetCurrentIndex(list);
+          this.setPlayList(list);
+        },
+        /**
+         * 根据当前正在播放的歌曲在新的播放列表中的位置来重置state中的currentIndex
+         * 因为播放模式改变了，而state中的currentIndex是当前正在播放的歌曲在默认播放列表中的位置，所以需要找到当前正在播放的歌曲在新的歌曲列表中的位置来确定state中的currentIndex的值
+         * findIndex 是ES6中的新语法
+         */
+        resetCurrentIndex(list) {
+          let index = list.findIndex((item) => {
+            return item.id === this.currentSong.id // 返回当前播放的歌曲在新的歌曲列表list中的位置index
+          });
+          this.setCurrentIndex(index);
         },
         ...mapMutations({
           setFullScreen: 'SET_FULL_SCREEN', // 将this.setFullScreen方法映射到mutations中的SET_FULL_SCREEN方法
           setPlayingState: 'SET_PLAYING_STATE',
           setCurrentIndex: 'SET_CURRENT_INDEX',
           setPlayMode: 'SET_PLAY_MODE',
-          setPlayList: 'SET_SEQUENCE_LIST'
+          setPlayList: 'SET_PLAY_LIST'
         })
       },
       watch: {
@@ -305,7 +331,10 @@
         /**
          * watch当前歌曲currentSong变化，就执行音乐的播放
          */
-        currentSong() {
+        currentSong(newSong, oldSong) {
+          if(newSong.id === oldSong.id) { // 当切换播放模式执行changeMode函数时，会触发resetCurrentIndex改变当前播放歌曲的位置，就会改变currentSong，就会触发该currentSong的watch函数，不return的话，就会执行下面的语句，使原本暂停状态的歌曲开始播放了
+            return;
+          }
           this.$nextTick(() => { // audio DOM元素还没有准备好就执行play()方法会报错，所以这里给个延时，下一帧
             this.$refs.audio.play();
           })
