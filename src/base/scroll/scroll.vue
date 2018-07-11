@@ -59,7 +59,7 @@
           // 滚动到指定的位置
           // 之所以调用apply方法是为了给scrollTo()方法传arguments参数(绝妙),因为listview.vue组件在调用该方法的时候，传递的参数个数是不确定的，用函数的arguments属性就可以很好的解决参数个数不确定的情况，又因为arguments是类数组，如果直接把该类数组传入this.scroll.srollTo(arguments)，就会出错(srollTo不接受数组参数)，因为apply方法第二个参数是可以接受数组的，所以apply就很好的解决了这个问题。  【当然上面的这个问题，用ES6 ...扩展运算符，就可以简单的解决了，如下的scrollToElement方法中】
         scrollTo() {
-          this.scroll && this.scroll.srollTo.apply(this.scroll, arguments);
+          this.scroll && this.scroll.scrollTo.apply(this.scroll, arguments);
         },
           // 滚动到指定的目标元素。
         scrollToElement() {

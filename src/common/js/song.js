@@ -1,3 +1,7 @@
+import {getLyric} from 'api/song';
+import {ERR_OK} from "../../api/config";
+import {Base64} from 'js-base64'
+
 export default class Song {
   constructor({id, mid, singer, name, album, duration, image, url}){
     this.id = id,
@@ -8,6 +12,24 @@ export default class Song {
     this.duration = duration, // 歌曲播放时长
     this.image = image, // 歌曲图片
     this.url = url // 歌曲源地址
+  }
+
+  getSongLyric() {
+    if(this.lyric) {  // 如果这首歌曲之前已经获取到歌词了，就直接返回该歌词，而不需要再去执行getLyric发请求获取歌词了
+      return new Promise.resolve(this.lyric);
+    }
+      // getLyric方法返回的就是一个promise对象，但这里仍然要包装为一个promise，是为了在getLyric中需要做获取歌词成功的处理resolve()和获取失败的处理reject()
+    return new Promise((resolve, reject) => {
+      getLyric(this.mid).then((res) => {
+        if(res.retcode === ERR_OK) {
+          this.lyric = Base64.decode(res.lyric);
+          // console.log(this.lyric);
+          resolve(this.lyric)
+        }else {
+          reject('no lyric');
+        }
+      })
+    })
   }
 }
 

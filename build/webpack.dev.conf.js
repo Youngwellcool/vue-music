@@ -33,6 +33,7 @@ const devWebpackConfig = merge(baseWebpackConfig, {
   // these devServer options should be customized in /config/index.js
   devServer: {
     before(app) {
+        // 获取
       // TODO 页面中引用，请求地址一定要加上/api，没加上一直报404错误(找了好久没发现原来，郁闷)
       app.get('/api/getDiscList',function (req, res) {
         var url = 'https://c.y.qq.com/splcloud/fcgi-bin/fcg_get_diss_by_tag.fcg';
@@ -48,6 +49,7 @@ const devWebpackConfig = merge(baseWebpackConfig, {
           console.log(err)
         })
       }),
+        // 获取歌曲url接口
       // TODO 页面中引用，请求地址一定要加上/api，没加上一直报404错误(找了好久没发现原来，郁闷)
       app.get('/api/getMusic', function (req, res) {
         var url = 'https://c.y.qq.com/base/fcgi-bin/fcg_music_express_mobile3.fcg';
@@ -59,6 +61,32 @@ const devWebpackConfig = merge(baseWebpackConfig, {
           params: req.query
         }).then((response) => {
           res.json(response.data) // 发送response.data给客户端
+        }).catch((err) => {
+          console.log(err)
+        })
+      }),
+
+        // 获取歌词接口
+      // TODO 页面中引用，请求地址一定要加上/api，没加上一直报404错误(找了好久没发现原来，郁闷)
+      app.get('/api/getLyric', function (req, res) {
+        var url = 'https://shc.y.qq.com/lyric/fcgi-bin/fcg_query_lyric_new.fcg';
+        axios.get(url, { // 此处axios是运行在node.js中，所以此处发的是http请求而不是xhr请求
+          headers: { // 修改header骗过浏览器referer和host如下
+            referer: 'https://c.y.qq.com/',
+            host: 'c.y.qq.com'
+          },
+          params: req.query
+        }).then((response) => {
+          var ret = response.data;
+          // 如果返回的结果是字符串而不是object
+          if(typeof ret === 'string') {
+            var reg = /^\w+\(({[^()]+})\)$/; // qq音乐歌词返回的结果ret是jsonp字符串格式，需要用正则来匹配出我们需要的json字符串，然后转为对象
+            var matches = ret.match(reg);
+            if(matches) {
+              ret = JSON.parse(matches[1]);
+            }
+          }
+          res.json(ret) // 发送ret给客户端
         }).catch((err) => {
           console.log(err)
         })

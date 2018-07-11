@@ -25,6 +25,16 @@
               </div>
             </div>
           </div>
+          <scroll class="middle-r" :data="currentLyric && currentLyric.lines" ref="lyricList">
+            <div class="lyric-wrapper">
+              <div v-if="currentLyric">
+                <p ref="lyricLine"
+                   class="text"
+                   :class="{'current': currentLineNum===index}"
+                   v-for="(line,index) in currentLyric.lines">{{line.txt}}</p>
+              </div>
+            </div>
+          </scroll>
         </div>
         <div class="bottom">
           <div class="progress-wrapper">
@@ -85,6 +95,8 @@
     import progressCircle from 'base/progress-circle/progress-circle'
     import {playMode} from "common/js/config";
     import {shuffle} from 'common/js/util'
+    import Lyric from 'lyric-parser'
+    import Scroll from 'base/scroll/scroll'
 
     const transform = prefixStyle('transform');
     const transition = prefixStyle('transition');
@@ -95,6 +107,8 @@
           songReady: false, // audio元素是否准备就绪 标志位
           currentTime: 0,
           radius: 32,  // 迷你播放器圆形精度条的半径
+          currentLyric: null, // 当前播放歌曲的歌词对象
+          currentLineNum: 0, //当前唱的这句歌词在currentLyric.line数组中的第几个元素，也就是在歌词列表中的第几行
         }
       },
       computed: {
@@ -226,6 +240,7 @@
           return num;
         },
 
+        /****************编程式动画开始****************/
         enter(el, done) {
           let {x,y,scale} = this._getPosAndScale();
           let animation = {
@@ -263,6 +278,8 @@
           this.$refs.cdWrapper.style[transition] = '';
           this.$refs.cdWrapper.style[transform] = '';
         },
+        /****************编程式动画结束****************/
+
         /**
          * 获取大唱片位置偏移到小唱片位置，x轴和y轴方向上的偏移量x、y，缩放比例scale
          * TODO 为什么会想到要获取这些值呢？因为做css3动画，都是要先获取动画的初始位置，初始状态
@@ -317,6 +334,35 @@
           });
           this.setCurrentIndex(index);
         },
+        /**
+         * 定义一个获取当前播放歌曲的歌词的方法
+         * 每一个song都是经由common/js/song.js中的工厂函数createSong()返回的Song类创建的，创建的没一个song都会继承Song类的getSongLyric()方法，每一个song调用该方法会返回一个lyric的promise对象
+         * 调用lyric-parser库的Lyric类方法，可以将歌词格式化我们需要的格式
+         */
+        _getLyric() {
+          this.currentSong.getSongLyric().then((lyric) => {
+            this.currentLyric = new Lyric(lyric, this.hanleLyric);
+            console.log(this.currentLyric);
+            if(this.playing) {
+              this.currentLyric.play(); // 调用currentLyric实例的play()方法，播放歌词该方法是继承class类Lyric的，是由lyric-parser这个GitHub库提供的
+            }
+          })
+        },
+        /**
+         * 歌词播放[this.currentLyric.play()]的回调函数，当歌曲播放的当前行改变时回调
+         * 根据当前行改变currentLineNum，currentLineNum控制着歌词高亮的class样式
+         * @param lineNum 播放的当前行
+         * @param txt 播放的当前行的歌词文本
+         */
+        hanleLyric({lineNum, txt}) {
+          this.currentLineNum = lineNum;
+          if(lineNum > 5) {  // 当前播放的歌词大于第6行时开始执行歌词同步滚动
+            let ele = this.$refs.lyricLine[lineNum - 5]; // 每次歌词同步滚动时，需要滚动到的目标元素(当播放到第7行时，linNum=6[linNum从0开始]，linNum-5=1，也就是ele为lyricLine数组中的第2个元素，执行scrollToElement(ele，1000)就是把歌词列表的第二行滚动到歌词容器的顶部，相当于滚动了一行，于是就实现了播放一行，滚动一行，播放的当前行歌词始终位于屏幕中间位置)
+            this.$refs.lyricList.scrollToElement(ele, 1000) // 1秒内滚动到ele元素的位置
+          }else {
+            this.$refs.lyricList.scrollTo(0, 0, 1000) // 如果当前播放的歌词小于第6行就把歌词滚动到歌词容器的顶部
+          }
+        },
         ...mapMutations({
           setFullScreen: 'SET_FULL_SCREEN', // 将this.setFullScreen方法映射到mutations中的SET_FULL_SCREEN方法
           setPlayingState: 'SET_PLAYING_STATE',
@@ -337,6 +383,7 @@
           }
           this.$nextTick(() => { // audio DOM元素还没有准备好就执行play()方法会报错，所以这里给个延时，下一帧
             this.$refs.audio.play();
+            this._getLyric()
           })
         },
         playing(newPlaying) {
@@ -348,7 +395,8 @@
       },
       components: {
         progressBar,
-        progressCircle
+        progressCircle,
+        Scroll
       }
     }
 </script>
