@@ -17,8 +17,12 @@
           <h1 class="title" v-html="currentSong.name"></h1>
           <h2 class="subtitle" v-html="currentSong.singer"></h2>
         </div>
-        <div class="middle">
-          <div class="middle-l">
+        <div class="middle"
+             @touchstart="middleTouchStart"
+             @touchmove="middleTouchMove"
+             @touchend="middleTouchEnd"
+        >
+          <div class="middle-l" ref="middleL">
             <div class="cd-wrapper" ref="cdWrapper">
               <div class="cd" :class="cdCls">
                 <img class="image" :src="currentSong.image">
@@ -37,6 +41,10 @@
           </scroll>
         </div>
         <div class="bottom">
+          <div class="dot-wrapper">
+            <div class="dot" :class="{'active':currentShow==='cd'}"></div>
+            <div class="dot" :class="{'active':currentShow==='lyric'}"></div>
+          </div>
           <div class="progress-wrapper">
             <span class="time time-l">{{format(currentTime)}}</span>
             <div class="progress-bar-wrapper">
@@ -101,6 +109,7 @@
     const transform = prefixStyle('transform');
     const transition = prefixStyle('transition');
     const animation = prefixStyle('animation');
+    const transitionDuration = prefixStyle('transitionDuration');
     export default {
       data() {
         return {
@@ -109,6 +118,7 @@
           radius: 32,  // 迷你播放器圆形精度条的半径
           currentLyric: null, // 当前播放歌曲的歌词对象
           currentLineNum: 0, //当前唱的这句歌词在currentLyric.line数组中的第几个元素，也就是在歌词列表中的第几行
+          currentShow: 'cd'
         }
       },
       computed: {
@@ -146,6 +156,9 @@
           'mode',
           'sequenceList'
         ])
+      },
+      created() {
+        this.touch = {}
       },
       methods: {
         back() {
@@ -362,6 +375,58 @@
           }else {
             this.$refs.lyricList.scrollTo(0, 0, 1000) // 如果当前播放的歌词小于第6行就把歌词滚动到歌词容器的顶部
           }
+        },
+        middleTouchStart(e) {
+          this.touch.touchInit = true;
+          const touches = e.touches[0];
+          this.touch.startX = touches.pageX;
+          this.touch.startY = touches.pageY;
+        },
+        middleTouchMove(e) {
+          if(!this.touch.touchInit) {
+            return;
+          }
+          const touches = e.touches[0];
+          const deltaX = touches.pageX - this.touch.startX;// (滑动横轴的距离还差，左滑为负值，右滑为正值)
+          const deltaY = touches.pageY - this.touch.startY; // 滑动纵坐标距离差，目的是识别是否是横滑还是纵滑
+          if(Math.abs(deltaY) > Math.abs(deltaX)) { // 如果是纵滑，也就是滑动歌词，就return
+            return;
+          }
+          const left = this.currentShow === 'cd' ? 0 : -window.innerWidth; // middle-r这个元素的left，默认是在屏幕的右边，left为0，也就是当前显示的是CD图片，当middle-r滑动到左边，CD图片消失，当前显示的是歌词，left为负的屏幕宽度window.innerWidth;
+          const offsetX = Math.min(0, Math.max(-window.innerWidth, deltaX + left)); // meddle-r这个元素滑动的距离offsetX，这个offsetX在(-window.innerWidth ~ 0)之间，如果当前显示的是CD，left=0，用户左滑多少距离deltaX，meddle-r就滑动多少距离offsetX=deltaX，即meddle-r从原始位置往左移动了offsetX px；如果当前显示的是歌词，left=-window.innerWidth，offsetX=deltaX-window.innerWidth
+          this.touch.percent = Math.abs(offsetX / window.innerWidth); // 滑动距离的百分比
+          this.$refs.lyricList.$el.style[transform] = `translate3d(${offsetX}px, 0, 0)`;
+          this.$refs.lyricList.$el.style[transitionDuration] = 0;
+          this.$refs.middleL.style.opacity = 1 - this.touch.percent;
+          this.$refs.middleL.style[transitionDuration] = 0;
+        },
+        middleTouchEnd(e) {
+          let offsetX;
+          let opacity;
+          if(this.currentShow === 'cd') {
+            if(this.touch.percent > 0.1) { // 左滑超过10%
+              offsetX = -window.innerWidth;
+              this.currentShow = 'lyric';
+              opacity = 0;
+            }else {
+              offsetX = 0;
+              opacity = 1;
+            }
+          }else {
+            if(this.touch.percent < 0.9) { // 右滑超过10%
+              offsetX = 0;
+              this.currentShow = 'cd';
+              opacity = 1;
+            }else {
+              offsetX = -window.innerWidth;
+              opacity = 0;
+            }
+          }
+          const time = 300;
+          this.$refs.lyricList.$el.style[transform] = `translate3d(${offsetX}px, 0, 0)`;
+          this.$refs.lyricList.$el.style[transitionDuration] = `${time}ms`;
+          this.$refs.middleL.style.opacity = opacity;
+          this.$refs.middleL.style[transitionDuration] = `${time}ms`;
         },
         ...mapMutations({
           setFullScreen: 'SET_FULL_SCREEN', // 将this.setFullScreen方法映射到mutations中的SET_FULL_SCREEN方法
