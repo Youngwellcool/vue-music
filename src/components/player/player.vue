@@ -28,6 +28,9 @@
                 <img class="image" :src="currentSong.image">
               </div>
             </div>
+            <div class="playing-lyric-wrapper">
+              <div class="playing-lyric">{{playingLyric}}</div>
+            </div>
           </div>
           <scroll class="middle-r" :data="currentLyric && currentLyric.lines" ref="lyricList">
             <div class="lyric-wrapper">
@@ -118,7 +121,8 @@
           radius: 32,  // 迷你播放器圆形精度条的半径
           currentLyric: null, // 当前播放歌曲的歌词对象
           currentLineNum: 0, //当前唱的这句歌词在currentLyric.line数组中的第几个元素，也就是在歌词列表中的第几行
-          currentShow: 'cd'
+          currentShow: 'cd',
+          playingLyric: '', // 当前正在播放的这句歌词
         }
       },
       computed: {
@@ -180,21 +184,30 @@
           if(!this.songReady) {  // 如果audio元素没有准备好，就不能点击下一首
             return
           }
-          let index = (this.currentIndex === (this.playlist.length - 1)) ? 0 : this.currentIndex + 1;
-          this.setCurrentIndex(index);
-          if(!this.playing) {
-            this.togglePlaying()
+          if(this.playlist.length === 1) { // TODO [异常情况处理] 如果歌曲列表里只有一首歌时，切歌时就相当于是执行了单曲循环函数loop()
+            this.loop()
+          }else {
+            let index = (this.currentIndex === (this.playlist.length - 1)) ? 0 : this.currentIndex + 1;
+            this.setCurrentIndex(index);
+            if(!this.playing) {
+              this.togglePlaying()
+            }
           }
+
           this.songReady = false;  // 切歌成功后要把songReady置为false
         },
         prev() {
           if(!this.songReady) { // 如果audio元素没有准备好，就不能点击上一首
             return
           }
-          let index = this.currentIndex === 0 ? (this.playlist.length - 1) : (this.currentIndex -1);
-          this.setCurrentIndex(index);
-          if(!this.playing) {
-            this.togglePlaying()
+          if(this.playlist.length === 1) { // TODO [异常情况处理] 如果歌曲列表里只有一首歌时，切歌时就相当于是执行了单曲循环函数loop()
+            this.loop()
+          }else {
+            let index = this.currentIndex === 0 ? (this.playlist.length - 1) : (this.currentIndex - 1);
+            this.setCurrentIndex(index);
+            if (!this.playing) {
+              this.togglePlaying()
+            }
           }
           this.songReady = false;  // 切歌成功后要把songReady置为false
         },
@@ -214,6 +227,9 @@
            */
         loop() {
           this.$refs.audio.currentTime = 0;
+          if(this.currentLyric) {
+            this.currentLyric.seek(0); // 单曲循环模式，歌曲播放完毕，重新播放时，将歌词跳到开始处(0：当前播放时间0毫秒)
+          }
           this.$refs.audio.play();
         },
           /**
@@ -222,7 +238,11 @@
            * 拖动结束后，设置为播放状态
            */
         onProgressBarChange(percent) {
-          this.$refs.audio.currentTime = this.currentSong.duration * percent; // audio元素的currentTime属性是可读性的
+          const currentTime = this.currentSong.duration * percent;
+          this.$refs.audio.currentTime = currentTime; // audio元素的currentTime属性是可读性的
+          if(this.currentLyric) {
+            this.currentLyric.seek(currentTime * 1000); // 拖动歌曲播放进度条，歌词同步跳到对应的播放处，currentTime的单位是秒，需乘以1000转为毫秒。
+          }
           if(!this.playing) {  // 拖动结束后，设置为播放状态
             this.togglePlaying();
           }
@@ -322,8 +342,14 @@
           if(!this.songReady) {
             return
           }
-          this.setPlayingState(!this.playing)
+          this.setPlayingState(!this.playing);
+          if(this.currentLyric) {
+            this.currentLyric.togglePlay(); // 播放/暂停时，将歌词也播放/暂停
+          }
         },
+        /**
+         * 切换播放模式
+         */
         changeMode() {
           let mode = (this.mode + 1) % 3; //this.mode值为0,1,2;加1就等于是切换到下一个模式，%3就能把结果限制在0,1,2这三个数
           this.setPlayMode(mode);
@@ -359,6 +385,10 @@
             if(this.playing) {
               this.currentLyric.play(); // 调用currentLyric实例的play()方法，播放歌词该方法是继承class类Lyric的，是由lyric-parser这个GitHub库提供的
             }
+          }).catch(() => { // TODO [异常情况处理] 获取歌词失败，将相关变量初始化
+            this.currentLineNum = 0;
+            this.currentLyric = null;
+            this.playingLyric = '';
           })
         },
         /**
@@ -375,6 +405,7 @@
           }else {
             this.$refs.lyricList.scrollTo(0, 0, 1000) // 如果当前播放的歌词小于第6行就把歌词滚动到歌词容器的顶部
           }
+          this.playingLyric = txt; // 当前正在播放的这句歌词
         },
         middleTouchStart(e) {
           this.touch.touchInit = true;
@@ -446,10 +477,18 @@
           if(newSong.id === oldSong.id) { // 当切换播放模式执行changeMode函数时，会触发resetCurrentIndex改变当前播放歌曲的位置，就会改变currentSong，就会触发该currentSong的watch函数，不return的话，就会执行下面的语句，使原本暂停状态的歌曲开始播放了
             return;
           }
-          this.$nextTick(() => { // audio DOM元素还没有准备好就执行play()方法会报错，所以这里给个延时，下一帧
+          if(this.currentLyric) { // 每次切换歌曲，在执行this._getLyric()之前，就要把前一首歌的歌词播放给停止掉，不然切换歌曲后，前一首歌曲的歌词仍然在播放，导致当前播放的歌曲的歌词同时也在执行前一首歌的歌词播放，导致歌词播放异常的来回跳动
+            this.currentLyric.stop()
+          }
+//          this.$nextTick(() => { // audio DOM元素还没有准备好就执行play()方法会报错，所以这里给个延时，下一帧
+//            this.$refs.audio.play();
+//            this._getLyric()
+//          })
+          // 将上面的nextTick改为setTimeout，延时久一点1秒钟，因为如果在微信或者手机浏览器运行时，当用户切换到后台播放，js就不会再执行了，但歌曲audio依然在播放，当audio播放结束时，就不会触发audio的end事件，就会导致歌曲的songReady一直为false，导致用户在切换到前台时，歌曲不能正常播放了
+          setTimeout(() => { // audio DOM元素还没有准备好就执行play()方法会报错，所以这里给个延时，下一帧
             this.$refs.audio.play();
             this._getLyric()
-          })
+          }, 1000)
         },
         playing(newPlaying) {
           const audio = this.$refs.audio;
