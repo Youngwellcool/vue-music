@@ -228,7 +228,7 @@
         loop() {
           this.$refs.audio.currentTime = 0;
           if(this.currentLyric) {
-            this.currentLyric.seek(0); // 单曲循环模式，歌曲播放完毕，重新播放时，将歌词跳到开始处(0：当前播放时间0毫秒)
+            this.currentLyric.seek(0); // 单曲循环模式，歌曲播放完毕，重新播放时，将歌词跳到开始处(param:0：当前播放时间0毫秒)
           }
           this.$refs.audio.play();
         },
@@ -381,7 +381,7 @@
         _getLyric() {
           this.currentSong.getSongLyric().then((lyric) => {
             this.currentLyric = new Lyric(lyric, this.hanleLyric);
-            console.log(this.currentLyric);
+//            console.log(this.currentLyric);
             if(this.playing) {
               this.currentLyric.play(); // 调用currentLyric实例的play()方法，播放歌词该方法是继承class类Lyric的，是由lyric-parser这个GitHub库提供的
             }

@@ -16,4 +16,6 @@ export const currentIndex = state => state.currentIndex;
   // 通过playList和currentIndex 计算出currentSong
 export const currentSong = (state) => {
   return state.playlist[state.currentIndex] || {}
-}
+};
+
+export const disc = state => state.disc;

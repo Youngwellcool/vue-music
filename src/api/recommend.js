@@ -36,3 +36,41 @@ export function getDiscList() {
     return Promise.resolve(res.data) // 返回一个Promise对象，且直接执行[成功后的回调resolve函数]，抛出res.data数据给then方法作为参数 (供recommend.vue中的_getDiscList方法使用)
   })
 }
+
+export function getDiscSongList(dissid) {
+  const url = '/api/getDiscSongList';
+  const data = Object.assign({},commonParams,{
+    type: 1,
+    json: 1,
+    utf8: 1,
+    onlysong: 0,
+    disstid: dissid,
+    hostUin: 0,
+    platform: 'yqq',
+    needNewCode: 0
+
+    // uin: 0,
+    // format: 'json',
+    // notice: 0,
+    // needNewCode: 1,
+    // new_format: 1,
+    // pic: 500,
+    // disstid: disstid,
+    // type: 1,
+    // json: 1,
+    // utf8: 1,
+    // onlysong: 0,
+    // picmid: 1,
+    // nosign: 1,
+    // song_begin: 0,
+    // platform: 'h5',
+    // song_num: 100,
+    // _: +new Date()
+  });
+  return axios.get(url, {
+    params: data,
+  }).then((res) => {
+    console.log(res)
+    return Promise.resolve(res.data)
+  })
+}
