@@ -80,7 +80,8 @@ const devWebpackConfig = merge(baseWebpackConfig, {
           var ret = response.data;
           // 如果返回的结果是字符串而不是object
           if(typeof ret === 'string') {
-            var reg = /^\w+\(({[^()]+})\)$/; // qq音乐歌词返回的结果ret是jsonp字符串格式，需要用正则来匹配出我们需要的json字符串，然后转为对象
+            // var reg = /^\w+\(({[^()]+})\)$/; // qq音乐歌词返回的结果ret是jsonp字符串格式，需要用正则来匹配出我们需要的json字符串，然后转为对象
+            var reg = /^\w+\(({.+})\)$/;
             var matches = ret.match(reg);
             if(matches) {
               ret = JSON.parse(matches[1]);
@@ -106,14 +107,14 @@ const devWebpackConfig = merge(baseWebpackConfig, {
           var ret = response.data;
           if(typeof ret === 'string') {
             console.log('字符串')
-            var reg = /^\w+\(({[^()]+})\)$/;
+            // var reg = /^\w+\(({[^()]+})\)$/;
+            var reg = /^\w+\(({.+})\)$/;
             var matches = ret.match(reg);
             if(matches) {
               console.log('正则')
               ret = JSON.parse(matches[1])
             }
           }
-          console.log(ret)
           res.json(ret) // 发送ret给客户端
         }).catch((err) => {
           console.log('出错了')
