@@ -1,5 +1,5 @@
 <template>
-  <div class="music-list">
+  <div class="music-list" ref="musicList">
     <div class="back" @click="back">
       <i class="icon-back"></i>
     </div>
@@ -36,12 +36,14 @@
   import {prefixStyle} from 'common/js/dom'
   import Loading from 'base/loading/loading'
   import {mapActions} from 'vuex'
+  import {playlistMixin} from 'common/js/mixin';
 
   const RESERVED_HEIGHT = 40; // 歌曲滚动的偏移量，也就是class=title的高度
   const transform = prefixStyle('transform');
   const backdrop = prefixStyle('backdrop-filter');
 
     export default {
+      mixins: [playlistMixin],
       props: {
         bgImg: {
           type: String,
@@ -77,6 +79,11 @@
         }
       },
       methods: {
+        handlePlaylist(playlist) {
+          const bottom = playlist.length > 0 ? '60px' : '';
+          this.$refs.list.$el.style.bottom = bottom;
+          this.$refs.list.refresh();
+        },
         scroll(pos) {
           this.scrollY = pos.y;
         },

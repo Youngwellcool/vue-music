@@ -1,5 +1,5 @@
 <template>
-  <div class="recommend">
+  <div class="recommend" ref="recommend">
     <scroll ref="scroll" class="recommend-content" :data="discList"><!--绑定props属性data=discList，当discList数据发生了变化时，会触发scroll组件中的watch，从而更新better-scroll，重新获取页面的宽高，而不需要调用者自己手动来更新better-scroll-->
       <div>
         <div v-if="recommends.length" class="slider-wrapper"> <!--当recommends有数据时，才开始渲染该div，也就是才开始加载slider组件，不然slider组件中的mounted方法(better-scroll初始化)都开始执行了，页面中还没有加载出数据(导致better-scroll获取不到dom元素的宽高)-->
@@ -41,7 +41,10 @@
   import {getRecommend, getDiscList} from 'api/recommend';
   import {ERR_OK} from 'api/config';
   import {mapMutations} from 'vuex';
+  import {playlistMixin} from 'common/js/mixin';
+
   export default {
+    mixins: [playlistMixin],
     data() {
       return {
         recommends: [],
@@ -53,6 +56,11 @@
       this._getDiscList();
     },
     methods: {
+      handlePlaylist(playlist) {
+        const bottom = playlist.length > 0 ? '60px' : '';
+        this.$refs.recommend.style.bottom = bottom;
+        this.$refs.scroll.refresh();
+      },
       _getRecommend() {
         getRecommend().then((res) => {
           if(res.code == ERR_OK){

@@ -46,10 +46,12 @@
     import {getDataProp} from 'common/js/dom'
     import Loading from 'base/loading/loading'
 
+
     const SHORTCUT_HEIGHT = 18; // 每个索引计算后的高度
     const TITLE_HEIGHT = 30; // .list-group-title的高度 列表组标题的高度
 
     export default {
+
       props: {
         data: {
           type: Array,
@@ -86,9 +88,12 @@
             return ''
           }
           return this.data[this.currentIndex] ? this.data[this.currentIndex].title : ''
-        }
+        },
       },
       methods: {
+        refresh() {
+          this.$refs.listView.refresh();
+        },
         selectItem(item) {
           this.$emit('select', item)
         },
