@@ -2,6 +2,10 @@
   <div class="song-list">
     <ul>
       <li @click="selectItem(song,index)" v-for="(song,index) in songs" class="item">
+        <!--扩展一个排行样式-->
+        <div class="rank" v-show="rank">
+          <span :class="getRankCla(index)">{{getRankText(index)}}</span>
+        </div>
         <div class="content">
           <h2 class="name">{{song.name}}</h2>
           <p class="desc">{{getDesc(song)}}</p>
@@ -17,6 +21,10 @@
         songs:{
           type: Array,
           default: []
+        },
+        rank: { // 接收一个prop为rank，是否开启排行
+          type: Boolean,
+          default: false
         }
       },
       methods: {
@@ -25,7 +33,30 @@
         },
         selectItem(song,index) {  // 该组件是基础组件，不是业务组件，所以该方法里不写业务逻辑，而只是派发事件给其父组件(业务组件)去处理业务逻辑
           this.$emit('select', song, index)
-        }
+        },
+
+        /********扩展排行图标********/
+
+          // 获取排行图标的样式class值
+        getRankCla(index) {
+          if(index<=2) {  // 如果是前三名，增加图标样式
+            return `icon icon${index}`;  // 返回的样式名与css代码相对应
+          }else {  // 否则是文本样式
+            return 'text'
+          }
+        },
+        /**
+         * 获取排行文本
+         * @param index 排行位置
+         * @returns {*}
+         */
+        getRankText(index) {
+          if(index>2) {  // 如果是前三名之后
+            return index + 1;
+          }else {
+            return ''
+          }
+        },
       },
     }
 </script>

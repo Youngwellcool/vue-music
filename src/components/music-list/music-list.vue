@@ -21,7 +21,7 @@
             class="list"
             ref="list">
       <div class="song-list-wrapper">
-        <song-list @select="selectItem" :songs="songs"></song-list>
+        <song-list @select="selectItem" :songs="songs" :rank="rank"></song-list>
       </div>
       <div class="loading-container" v-show="!songs.length">
         <loading></loading>
@@ -56,6 +56,10 @@
         title: {
           type: String,
           default: ''
+        },
+        rank: {   // 接收一个prop为rank，是否开启排行
+          type: Boolean,
+          default: false
         }
       },
       data() {
